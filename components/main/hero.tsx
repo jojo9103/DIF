@@ -1,4 +1,8 @@
+
+
 import React from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-context";
 import { cn } from "@/lib/utils";
 
 interface HeroProps {
@@ -6,6 +10,19 @@ interface HeroProps {
 }
 
 export default function Hero({ className }: HeroProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
+
+  const handleProtectedAction = (target: string) => {
+    if (!isAuthenticated) {
+      const next = encodeURIComponent(target || pathname || "/");
+      router.push(`/auth?mode=login&next=${next}`);
+      return;
+    }
+    router.push(target);
+  };
+
   return (
     <section
       className={cn(
@@ -68,10 +85,16 @@ export default function Hero({ className }: HeroProps) {
             연구, 품질 검사, 자동화 리포트에 바로 활용 가능한 시각적 결과물을 제공합니다.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <button className="rounded-full bg-sky-400 px-6 py-3 text-sm font-semibold text-[#0b0f1a] transition hover:bg-sky-300">
+            <button
+              onClick={() => handleProtectedAction("/upload")}
+              className="rounded-full bg-sky-400 px-6 py-3 text-sm font-semibold text-[#0b0f1a] transition hover:bg-sky-300"
+            >
               DIF 이미지 업로드
             </button>
-            <button className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white">
+            <button
+              onClick={() => handleProtectedAction("/demo")}
+              className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+            >
               데모 보기
             </button>
           </div>
@@ -95,7 +118,7 @@ export default function Hero({ className }: HeroProps) {
           <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-6 shadow-[0_30px_120px_rgba(14,165,233,0.25)]">
             <div className="flex items-center justify-between text-xs text-white/60">
               <span>Input: DIF_0421.tif</span>
-              <span>Model: PatternNet v2</span>
+              <span>Model: DIF Net v2</span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-4">
               <div className="rounded-2xl border border-white/10 bg-[#0f172a]/80 p-4">

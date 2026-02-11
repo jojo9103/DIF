@@ -1,0 +1,35 @@
+{
+  "sample_idx": 437,
+  "original_image_path": "/data/Asan_DP/Yonsei/New_pipe/Young_Kang_won_pipe/2025/2025\ub144/20201273_\uc774\ubbf8\uacbd/ipeak_capture_YS25-18670_C3.png",
+  "target": [
+    0.0,
+    1.0
+  ],
+  "prediction": [
+    false,
+    true
+  ],
+  "probability": [
+    0.07176710665225983,
+    0.9218773245811462
+  ],
+  "is_correct": true,
+  "class_names": [
+    "Linear Pattern",
+    "Peri-vascular Pattern"
+  ],
+  "class_results": {
+    "Linear Pattern": {
+      "target": 0.0,
+      "prediction": 0.0,
+      "probability": 0.07176710665225983,
+      "correct": 1.0
+    },
+    "Peri-vascular Pattern": {
+      "target": 1.0,
+      "prediction": 1.0,
+      "probability": 0.9218773245811462,
+      "correct": 1.0
+    }
+  }
+}

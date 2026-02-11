@@ -1,0 +1,9 @@
+[
+  {
+    "id": "admin",
+    "email": "admin",
+    "affiliation": "admin",
+    "passwordHash": "41f095cc2355471b39280de43aef34d9b830525c43bd89bb4c8854f3ba7a6ed6",
+    "salt": "00e18871f9857af06153904e6c40e551"
+  }
+]
