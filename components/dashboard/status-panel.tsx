@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useJobs } from "@/hooks/use-jobs";
 
 type JobStatus = "queued" | "running" | "done" | "failed" | "canceled";
 
@@ -143,7 +144,7 @@ export default function StatusPanel({
   onResultReady?: () => void;
   onOpenResult?: (project: string) => void;
 } = {}) {
-  const [jobs, setJobs] = React.useState<Job[]>([]);
+  const { jobs, fetchJobs, activeJobs, completedJobs } = useJobs(5000);
   const [showRunningOnly, setShowRunningOnly] = React.useState(false);
   const [errorModal, setErrorModal] = React.useState<{
     title: string;
@@ -151,22 +152,6 @@ export default function StatusPanel({
     loading: boolean;
     jobId: string;
   } | null>(null);
-
-  const fetchJobs = React.useCallback(async () => {
-    const res = await fetch("/api/jobs", { cache: "no-store" });
-    const data = await res.json();
-    if (data?.ok) {
-      const next = Array.isArray(data.jobs) ? data.jobs : [];
-      next.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
-      setJobs(next);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    fetchJobs();
-    const id = setInterval(fetchJobs, 5000);
-    return () => clearInterval(id);
-  }, [fetchJobs]);
 
   React.useEffect(() => {
     if (!errorModal?.jobId) return;
@@ -191,16 +176,6 @@ export default function StatusPanel({
     }, 4000);
     return () => clearInterval(id);
   }, [errorModal?.jobId]);
-
-  const activeJobs = React.useMemo(
-    () => jobs.filter((job) => job.status === "queued" || job.status === "running"),
-    [jobs]
-  );
-
-  const completedJobs = React.useMemo(
-    () => jobs.filter((job) => job.status === "done" || job.status === "failed" || job.status === "canceled"),
-    [jobs]
-  );
 
   React.useEffect(() => {
     if (!onResultReady) return;
@@ -252,7 +227,21 @@ export default function StatusPanel({
         <div className="mt-4 space-y-3">
           {visibleJobs.length === 0 && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
-              현재 표시할 프로젝트가 없습니다.
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-white/70">현재 표시할 프로젝트가 없습니다.</div>
+                  <div className="mt-1 text-xs text-white/50">
+                    이미지를 업로드하면 분석 결과가 이곳에 표시됩니다.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => (window.location.href = "/upload")}
+                  className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/10 px-5 py-2 text-xs font-semibold text-white/80 transition hover:border-white/30 hover:bg-white/15"
+                >
+                  Start analysis
+                </button>
+              </div>
             </div>
           )}
 
@@ -307,7 +296,14 @@ export default function StatusPanel({
                   {job.status === "done" && job.project && (
                     <button
                       type="button"
-                      onClick={() => onOpenResult?.(job.project || "")}
+                      onClick={() => {
+                        const target = job.project || "";
+                        if (onOpenResult) {
+                          onOpenResult(target);
+                        } else if (typeof window !== "undefined") {
+                          window.location.href = `/dashboard?project=${encodeURIComponent(target)}`;
+                        }
+                      }}
                       className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/70 transition hover:border-white/30 hover:bg-white/10"
                     >
                       결과 보기

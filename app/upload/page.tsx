@@ -86,7 +86,7 @@ export default function UploadPage() {
     setPeriTarget("");
     if (clinicalRef.current) clinicalRef.current.value = "";
     if (inputRef.current) inputRef.current.value = "";
-    setTimeout(() => router.push("/dashboard#status"), 400);
+    setTimeout(() => router.push("/status"), 400);
   };
 
   return (

@@ -1,8 +1,7 @@
 
 
 import React from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth/auth-context";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 interface HeroProps {
@@ -10,19 +9,6 @@ interface HeroProps {
 }
 
 export default function Hero({ className }: HeroProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
-
-  const handleProtectedAction = (target: string) => {
-    if (!isAuthenticated) {
-      const next = encodeURIComponent(target || pathname || "/");
-      router.push(`/auth?mode=login&next=${next}`);
-      return;
-    }
-    router.push(target);
-  };
-
   return (
     <section
       className={cn(
@@ -32,7 +18,8 @@ export default function Hero({ className }: HeroProps) {
         className
       )}
     >
-      <div className="pointer-events-none absolute inset-0 opacity-70">
+      <div className="absolute inset-0 z-0 pointer-events-none" />
+      <div className="pointer-events-none absolute inset-0 z-0 opacity-70">
         <svg
           className="absolute -left-16 top-10 h-64 w-64 text-sky-400/30"
           viewBox="0 0 200 200"
@@ -70,7 +57,7 @@ export default function Hero({ className }: HeroProps) {
         </svg>
       </div>
 
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:gap-14 lg:px-10">
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:gap-14 lg:px-10">
         <div className="flex-1 space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-white/70">
             DIF Pattern Detector
@@ -85,18 +72,18 @@ export default function Hero({ className }: HeroProps) {
             연구, 품질 검사, 자동화 리포트에 바로 활용 가능한 시각적 결과물을 제공합니다.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => handleProtectedAction("/upload")}
+            <Link
+              href="/upload"
               className="rounded-full bg-sky-400 px-6 py-3 text-sm font-semibold text-[#0b0f1a] transition hover:bg-sky-300"
             >
               DIF 이미지 업로드
-            </button>
-            <button
-              onClick={() => handleProtectedAction("/demo")}
+            </Link>
+            <Link
+              href="/demo"
               className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
             >
               데모 보기
-            </button>
+            </Link>
           </div>
           <div className="flex flex-wrap gap-6 pt-4 text-xs text-white/60">
             <div>

@@ -1,0 +1,18 @@
+{
+  "id": "job_1770883830830_ojkhfz",
+  "userId": "admin",
+  "project": "test_test",
+  "mode": "single",
+  "inputDir": "E:\\김제민교수님\\model_site\\data\\upload\\admin\\test_test",
+  "outputDir": "E:\\김제민교수님\\model_site\\data\\results\\admin\\test_test",
+  "backbone": "resnext50_32x4d",
+  "modelNumber": "0",
+  "weightsPath": "E:\\김제민교수님\\model_site\\data\\models\\resnext50_32x4d_0_best_model_512.pt",
+  "targetsPath": "E:\\김제민교수님\\model_site\\data\\upload\\admin\\test_test\\targets.csv",
+  "status": "done",
+  "createdAt": "2026-02-12T08:10:30.830Z",
+  "progress": 100,
+  "lastHeartbeat": "2026-02-12T08:10:31.589131+00:00",
+  "lastProgressAt": "2026-02-12T08:10:38.642021+00:00",
+  "logPath": "E:\\김제민교수님\\model_site\\data\\results\\admin\\test_test\\worker.log"
+}

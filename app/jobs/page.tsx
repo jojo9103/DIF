@@ -1,13 +1,11 @@
-"use client";
-
-import React from "react";
+﻿import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useJobs } from "@/hooks/use-jobs";
 
-type JobStatus = "queued" | "running" | "done" | "failed";
+type JobStatus = "queued" | "running" | "done" | "failed" | "canceled";
 
 type Job = {
   id: string;
-  userId?: string;
   project?: string;
   status?: JobStatus;
   createdAt?: string;
@@ -103,6 +101,8 @@ const mapStatus = (status?: JobStatus): StatusType => {
       return "success";
     case "failed":
       return "error";
+    case "canceled":
+      return "warning";
     case "queued":
       return "pending";
     default:
@@ -111,28 +111,19 @@ const mapStatus = (status?: JobStatus): StatusType => {
 };
 
 export default function JobsPage() {
-  const [jobs, setJobs] = React.useState<Job[]>([]);
+  const { jobs } = useJobs(5000);
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
 
-  const fetchJobs = React.useCallback(async () => {
-    const res = await fetch("/api/jobs", { cache: "no-store" });
-    const data = await res.json();
-    if (data?.ok) {
-      setJobs(data.jobs || []);
-      setLastUpdated(new Date());
-    }
-  }, []);
-
   React.useEffect(() => {
-    fetchJobs();
-    const id = setInterval(fetchJobs, 5000);
-    return () => clearInterval(id);
-  }, [fetchJobs]);
+    setLastUpdated(new Date());
+  }, [jobs]);
 
-  const summary = React.useMemo(() => {
+  const summary = useMemo(() => {
     const counts = { queued: 0, running: 0, done: 0, failed: 0 };
     jobs.forEach((j) => {
-      if (j.status && counts[j.status] !== undefined) counts[j.status] += 1;
+      if (j.status && (counts as any)[j.status] !== undefined) {
+        (counts as any)[j.status] += 1;
+      }
     });
     return counts;
   }, [jobs]);
@@ -142,9 +133,7 @@ export default function JobsPage() {
       <section className="relative min-h-screen px-6 pb-16 pt-10 lg:px-10">
         <div className="mx-auto w-full max-w-6xl">
           <h1 className="text-3xl font-semibold">Job Status</h1>
-          <p className="mt-2 text-sm text-white/60">
-            5초마다 자동 갱신됩니다.
-          </p>
+          <p className="mt-2 text-sm text-white/60">5초마다 자동 갱신됩니다.</p>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs">
@@ -176,7 +165,7 @@ export default function JobsPage() {
               </div>
             )}
 
-            {jobs.map((job) => (
+            {jobs.map((job: Job) => (
               <div
                 key={job.id}
                 className="rounded-2xl border border-white/10 bg-white/5 p-4"
@@ -186,9 +175,7 @@ export default function JobsPage() {
                     <div className="text-sm text-white">
                       {job.project || "프로젝트 없음"}
                     </div>
-                    <div className="mt-1 text-[11px] text-white/50">
-                      {job.id}
-                    </div>
+                    <div className="mt-1 text-[11px] text-white/50">{job.id}</div>
                   </div>
                   <StatusBadge status={mapStatus(job.status)}>
                     {job.status || "unknown"}
@@ -206,9 +193,7 @@ export default function JobsPage() {
                   </div>
                   <div>
                     <div className="text-white/40">시작 시간</div>
-                    <div className="mt-1 text-white">
-                      {job.createdAt || "-"}
-                    </div>
+                    <div className="mt-1 text-white">{job.createdAt || "-"}</div>
                   </div>
                   <div>
                     <div className="text-white/40">상태 요약</div>
@@ -225,10 +210,8 @@ export default function JobsPage() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-white/40">에러</div>
-                    <div className="mt-1 text-white">
-                      {job.error || "-"}
-                    </div>
+                    <div className="text-white/40">오류</div>
+                    <div className="mt-1 text-white">{job.error || "-"}</div>
                   </div>
                 </div>
               </div>

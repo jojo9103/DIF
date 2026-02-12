@@ -1,2 +1,2 @@
 sample_idx,image_path,is_correct,Image_name,Linear Pattern_target,Linear Pattern_prediction,Linear Pattern_probability,Linear Pattern_correct,Peri-vascular Pattern_target,Peri-vascular Pattern_prediction,Peri-vascular Pattern_probability,Peri-vascular Pattern_correct
-0,E:\김제민교수님\model_site\data\upload\admin\test\IS25-15899_C3_1.jpg,,IS25-15899_C3_1,,0,0.007647882681339979,,,0,0.03319472447037697,
+0,E:\김제민교수님\model_site\data\upload\admin\test_img\IS25-15899_C3_1.jpg,,IS25-15899_C3_1,,0,0.007647882681339979,,,0,0.03319472447037697,

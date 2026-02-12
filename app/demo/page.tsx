@@ -1,131 +1,31 @@
-import path from "path";
+﻿import path from "path";
 import { promises as fs } from "fs";
 import DashboardNavbar from "@/components/dashboard/navbar";
 import RequireAuth from "@/components/auth/require-auth";
 import DashboardViewer from "@/components/dashboard/dashboard-viewer";
-
-type HeatmapRow = Record<string, string>;
-
-const parseCsv = (raw: string) => {
-  const [headerLine, ...rows] = raw.split(/\r?\n/).filter(Boolean);
-  if (!headerLine) return [];
-  const headers = headerLine.split(",").map((h) => h.trim());
-  return rows.map((line) => {
-    const values = line.split(",").map((v) => v.trim());
-    return headers.reduce<HeatmapRow>((acc, key, index) => {
-      acc[key] = values[index] ?? "";
-      return acc;
-    }, {});
-  });
-};
+import { loadProjects } from "@/lib/results";
 
 const DEMO_PROJECTS = ["demo", "Test"];
 
 const loadDemoData = async () => {
   const resultsRoot = path.join(process.cwd(), "data", "results");
-  let projectName = "";
-  let projects: {
-    name: string;
-    samples: {
-      name: string;
-      images: { src: string; label: string }[];
-      stats: {
-        linearTarget?: string;
-        linearProbability?: string;
-        linearPrediction?: string;
-        linearCorrect?: string;
-        periTarget?: string;
-        periProbability?: string;
-        periPrediction?: string;
-        periCorrect?: string;
-      };
-    }[];
-  }[] = [];
-  let sampleName = "";
-  let samples: {
-    name: string;
-    images: { src: string; label: string }[];
-    stats: {
-      linearTarget?: string;
-      linearProbability?: string;
-      linearPrediction?: string;
-      linearCorrect?: string;
-      periTarget?: string;
-      periProbability?: string;
-      periPrediction?: string;
-      periCorrect?: string;
-    };
-  }[] = [];
+  const entries = await fs.readdir(resultsRoot, { withFileTypes: true });
+  const projectDirs = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .filter((name) => DEMO_PROJECTS.includes(name));
 
-  try {
-    const entries = await fs.readdir(resultsRoot, { withFileTypes: true });
-    const projectDirs = entries
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .filter((name) => DEMO_PROJECTS.includes(name));
-
-    const projectDir = projectDirs[0];
-    if (!projectDir) {
-      return { sampleName, samples, projectName, projects };
-    }
-
-    projectName = projectDir;
-    projects = await Promise.all(
-      projectDirs.map(async (dirName) => {
-        const projectRoot = path.join(resultsRoot, dirName);
-        let rows: HeatmapRow[] = [];
-        try {
-          const raw = await fs.readFile(path.join(projectRoot, "heatmap_summary.csv"), "utf8");
-          rows = parseCsv(raw);
-        } catch {
-          rows = [];
-        }
-        const projectEntries = await fs.readdir(projectRoot, { withFileTypes: true });
-        const sampleDirs = projectEntries
-          .filter((entry) => entry.isDirectory())
-          .map((entry) => entry.name);
-
-        const projectSamples = sampleDirs.map((sampleDir) => {
-          const basePath = `/results/${dirName}/${sampleDir}`;
-          const sampleImages = [
-            { src: `${basePath}/original.png`, label: "Original" },
-            { src: `${basePath}/overlay_Linear Pattern.png`, label: "Linear Pattern" },
-            { src: `${basePath}/overlay_Peri-vascular Pattern.png`, label: "Peri-vascular Pattern" },
-          ].map((img) => ({ ...img, src: encodeURI(img.src) }));
-
-          const matched = rows.find((row) => row.Image_name === sampleDir);
-          const sampleStats = matched
-            ? {
-                linearTarget: matched["Linear Pattern_target"],
-                linearProbability: matched["Linear Pattern_probability"],
-                linearPrediction: matched["Linear Pattern_prediction"],
-                linearCorrect: matched["Linear Pattern_correct"],
-                periTarget: matched["Peri-vascular Pattern_target"],
-                periProbability: matched["Peri-vascular Pattern_probability"],
-                periPrediction: matched["Peri-vascular Pattern_prediction"],
-                periCorrect: matched["Peri-vascular Pattern_correct"],
-              }
-            : {};
-          return { name: sampleDir, images: sampleImages, stats: sampleStats };
-        });
-
-        return { name: dirName, samples: projectSamples };
-      })
-    );
-
-    const activeProject = projects.find((p) => p.name === projectName) ?? projects[0];
-    if (activeProject) {
-      samples = activeProject.samples;
-      const sampleDir = samples[0]?.name;
-      if (sampleDir) {
-        sampleName = sampleDir;
-      }
-    }
-  } catch {
-    // no-op: allow empty state
+  const first = projectDirs[0];
+  if (!first) {
+    return { sampleName: "", samples: [], projectName: "", projects: [] };
   }
 
-  return { sampleName, samples, projectName, projects };
+  return loadProjects({
+    viewRoot: resultsRoot,
+    preferredProject: first,
+    allowedProjects: DEMO_PROJECTS,
+    basePathForSample: (project, sample) => `/results/${project}/${sample}`,
+  });
 };
 
 export default async function DemoPage() {
@@ -151,6 +51,7 @@ export default async function DemoPage() {
             samples={samples}
             projects={projects}
             initialSample={sampleName}
+            allowDelete={false}
           />
         </section>
       </main>

@@ -22,16 +22,15 @@ export default function DashboardContent({
   hasResults,
 }: DashboardContentProps) {
   const router = useRouter();
-  const [view, setView] = React.useState<"result" | "status">(
-    typeof window !== "undefined" && window.location.hash === "#status" ? "status" : "result"
-  );
+  const [view, setView] = React.useState<"result" | "status">("result");
 
   React.useEffect(() => {
-    const onHash = () => {
+    const sync = () => {
       setView(window.location.hash === "#status" ? "status" : "result");
     };
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
   }, []);
 
   const handleOpenResult = (project: string) => {
@@ -71,6 +70,7 @@ export default function DashboardContent({
       samples={samples}
       projects={projects}
       initialSample={initialSample}
+      allowDelete
     />
   );
 }

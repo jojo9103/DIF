@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ImageViewer from "@/components/dashboard/image-viewer";
 import ClinicalTable from "@/components/dashboard/clinical-table";
 import ViewerTree, { ViewerSample } from "@/components/dashboard/viewer-tree";
@@ -15,6 +16,7 @@ interface DashboardViewerProps {
     clinical?: { columns: string[]; rows: Record<string, string>[] };
   }[];
   initialSample: string;
+  allowDelete?: boolean;
 }
 
 export default function DashboardViewer({
@@ -22,7 +24,9 @@ export default function DashboardViewer({
   samples,
   projects = [],
   initialSample,
+  allowDelete = false,
 }: DashboardViewerProps) {
+  const router = useRouter();
   const initialProject = projectName || projects[0]?.name || "";
   const [activeProject, setActiveProject] = React.useState(initialProject);
   const [activeSample, setActiveSample] = React.useState(initialSample);
@@ -133,6 +137,16 @@ export default function DashboardViewer({
     }
   }, [activeProject, projects]);
 
+  const handleDeleteProject = async (name: string) => {
+    if (!allowDelete || !name) return;
+    await fetch("/api/results/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project: name }),
+    });
+    router.refresh();
+  };
+
   if (!current) {
     return (
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-8 text-sm text-white/60">
@@ -171,6 +185,8 @@ export default function DashboardViewer({
           setActiveSample(nextSamples[0]?.name || "");
           setActiveIndex(0);
         }}
+        onDeleteProject={handleDeleteProject}
+        allowDelete={allowDelete}
       />
       <div>
         <ImageViewer

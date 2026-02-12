@@ -14,10 +14,10 @@ export default function Navbar({ className }: NavbarProps) {
   const { isAuthenticated, user, logout } = useAuth();
   const pathname = usePathname();
   const nextParam = encodeURIComponent(pathname || "/");
-  const getStartedHref = isAuthenticated ? "/dashboard" : `/auth?mode=login&next=${nextParam}`;
+  const getStartedHref = isAuthenticated ? "/upload" : `/auth?mode=login&next=${encodeURIComponent("/upload")}`;
   const statusHref = isAuthenticated
-    ? "/dashboard#status"
-    : `/auth?mode=login&next=${encodeURIComponent("/dashboard#status")}`;
+    ? "/status"
+    : `/auth?mode=login&next=${encodeURIComponent("/status")}`;
 
   return (
     <header

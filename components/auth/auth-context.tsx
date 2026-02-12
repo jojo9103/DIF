@@ -11,6 +11,7 @@ type AuthUser = {
 type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   register: (input: {
     id: string;
     password: string;
@@ -25,14 +26,20 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch("/api/auth/me", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = (await res.json()) as { ok: boolean; user: AuthUser | null };
-      if (data.ok && data.user) {
-        setUser(data.user);
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (res.ok) {
+          const data = (await res.json()) as { ok: boolean; user: AuthUser | null };
+          if (data.ok && data.user) {
+            setUser(data.user);
+          }
+        }
+      } finally {
+        setLoading(false);
       }
     };
     load();
@@ -42,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {
       user,
       isAuthenticated: Boolean(user),
+      isLoading: loading,
       register: async (input) => {
         const res = await fetch("/api/auth/register", {
           method: "POST",
@@ -66,11 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         const data = (await res.json()) as { ok: boolean; message: string };
         if (res.ok && data.ok) {
+          setLoading(true);
           const me = await fetch("/api/auth/me", { cache: "no-store" });
           if (me.ok) {
             const meData = (await me.json()) as { ok: boolean; user: AuthUser | null };
             if (meData.user) setUser(meData.user);
           }
+          setLoading(false);
         }
         return data;
       },
@@ -79,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
       },
     };
-  }, [user]);
+  }, [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -69,12 +69,14 @@ export async function DELETE(request: Request) {
       try {
         const raw = await fs.readFile(target, "utf8");
         const job = JSON.parse(raw);
+        const status = job?.status || "";
         const inputDir = job?.inputDir ? path.normalize(job.inputDir) : "";
         const outputDir = job?.outputDir ? path.normalize(job.outputDir) : "";
-        if (inputDir && inputDir.startsWith(uploadRoot)) {
+        const shouldRemoveFiles = status !== "done";
+        if (shouldRemoveFiles && inputDir && inputDir.startsWith(uploadRoot)) {
           await fs.rm(inputDir, { recursive: true, force: true });
         }
-        if (outputDir && outputDir.startsWith(resultsRoot)) {
+        if (shouldRemoveFiles && outputDir && outputDir.startsWith(resultsRoot)) {
           await fs.rm(outputDir, { recursive: true, force: true });
         }
       } catch {

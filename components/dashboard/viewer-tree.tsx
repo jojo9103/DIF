@@ -37,6 +37,8 @@ interface ViewerTreeProps {
   onSelectSample: (name: string) => void;
   onSelectImage: (index: number) => void;
   onSelectProject?: (name: string) => void;
+  onDeleteProject?: (name: string) => void;
+  allowDelete?: boolean;
 }
 
 export default function ViewerTree({
@@ -48,6 +50,8 @@ export default function ViewerTree({
   onSelectSample,
   onSelectImage,
   onSelectProject,
+  onDeleteProject,
+  allowDelete = false,
 }: ViewerTreeProps) {
   const [query, setQuery] = React.useState("");
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
@@ -210,7 +214,21 @@ export default function ViewerTree({
                     >
                       <TreeExpander hasChildren />
                       <TreeIcon hasChildren />
-                      <TreeLabel>{project.name}</TreeLabel>
+                      <div className="flex w-full items-center justify-between">
+                        <TreeLabel>{project.name}</TreeLabel>
+                        {allowDelete && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteProject?.(project.name);
+                            }}
+                            className="ml-2 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/60 transition hover:border-white/30 hover:text-white"
+                          >
+                            삭제
+                          </button>
+                        )}
+                      </div>
                     </TreeNodeTrigger>
                     <TreeNodeContent hasChildren>
                       {projectSamples.map((sample, sampleIndex) => {

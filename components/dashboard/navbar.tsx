@@ -88,7 +88,7 @@ export default function DashboardNavbar({ className }: DashboardNavbarProps) {
           </button>
           <button
             type="button"
-            onClick={() => router.push("/dashboard#status")}
+            onClick={() => router.push("/status")}
             className="transition hover:text-white"
           >
             Status
