@@ -15,6 +15,9 @@ export default function Navbar({ className }: NavbarProps) {
   const pathname = usePathname();
   const nextParam = encodeURIComponent(pathname || "/");
   const getStartedHref = isAuthenticated ? "/dashboard" : `/auth?mode=login&next=${nextParam}`;
+  const statusHref = isAuthenticated
+    ? "/dashboard#status"
+    : `/auth?mode=login&next=${encodeURIComponent("/dashboard#status")}`;
 
   return (
     <header
@@ -38,9 +41,9 @@ export default function Navbar({ className }: NavbarProps) {
           <a className="transition hover:text-white" href="#info">
             Info
           </a>
-          <a className="transition hover:text-white" href="#status">
+          <Link className="transition hover:text-white" href={statusHref}>
             Status
-          </a>
+          </Link>
           <Link className="transition hover:text-white" href="/dashboard">
             Result
           </Link>

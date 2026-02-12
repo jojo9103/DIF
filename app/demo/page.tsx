@@ -32,9 +32,11 @@ const loadDemoData = async () => {
       stats: {
         linearTarget?: string;
         linearProbability?: string;
+        linearPrediction?: string;
         linearCorrect?: string;
         periTarget?: string;
         periProbability?: string;
+        periPrediction?: string;
         periCorrect?: string;
       };
     }[];
@@ -46,9 +48,11 @@ const loadDemoData = async () => {
     stats: {
       linearTarget?: string;
       linearProbability?: string;
+      linearPrediction?: string;
       linearCorrect?: string;
       periTarget?: string;
       periProbability?: string;
+      periPrediction?: string;
       periCorrect?: string;
     };
   }[] = [];
@@ -94,9 +98,11 @@ const loadDemoData = async () => {
             ? {
                 linearTarget: matched["Linear Pattern_target"],
                 linearProbability: matched["Linear Pattern_probability"],
+                linearPrediction: matched["Linear Pattern_prediction"],
                 linearCorrect: matched["Linear Pattern_correct"],
                 periTarget: matched["Peri-vascular Pattern_target"],
                 periProbability: matched["Peri-vascular Pattern_probability"],
+                periPrediction: matched["Peri-vascular Pattern_prediction"],
                 periCorrect: matched["Peri-vascular Pattern_correct"],
               }
             : {};

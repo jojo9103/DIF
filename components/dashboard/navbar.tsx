@@ -40,8 +40,13 @@ export default function DashboardNavbar({ className }: DashboardNavbarProps) {
   }, []);
 
   return (
-    <header className={cn("fixed left-0 right-0 top-0 z-40", className)}>
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6 lg:px-10">
+    <header
+      className={cn(
+        "fixed left-0 right-0 top-0 z-40 border-b border-white/10 bg-[#141414]/90 backdrop-blur",
+        className
+      )}
+    >
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 lg:px-10">
         <div className="flex items-center gap-3">
           <button
             type="button"

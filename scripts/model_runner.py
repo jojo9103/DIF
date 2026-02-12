@@ -40,49 +40,49 @@ class DIFMultiTaskNet(nn.Module):
         name = name.lower()
         if name == "resnet18":
             weights = ResNet18_Weights.DEFAULT
-            model = resnet18(weights=weights)
+            model = resnet18(weights=None)
             feat_dim = model.fc.in_features
             model.fc = nn.Identity()
             return model, feat_dim
         if name == "resnet50":
             weights = ResNet50_Weights.DEFAULT
-            model = resnet50(weights=weights)
+            model = resnet50(weights=None)
             feat_dim = model.fc.in_features
             model.fc = nn.Identity()
             return model, feat_dim
         if name in ["resnext50_32x4d", "resnext50"]:
             weights = ResNeXt50_32X4D_Weights.DEFAULT
-            model = resnext50_32x4d(weights=weights)
+            model = resnext50_32x4d(weights=None)
             feat_dim = model.fc.in_features
             model.fc = nn.Identity()
             return model, feat_dim
         if name in ["vit_b_16", "vit"]:
             weights = ViT_B_16_Weights.DEFAULT
-            model = vit_b_16(weights=weights)
+            model = vit_b_16(weights=None)
             feat_dim = model.heads.head.in_features
             model.heads = nn.Identity()
             return model, feat_dim
         if name in ["swin_t", "swin"]:
             weights = Swin_T_Weights.DEFAULT
-            model = swin_t(weights=weights)
+            model = swin_t(weights=None)
             feat_dim = model.head.in_features
             model.head = nn.Identity()
             return model, feat_dim
         if name in ["densenet121", "densenet"]:
             weights = DenseNet121_Weights.DEFAULT
-            model = densenet121(weights=weights)
+            model = densenet121(weights=None)
             feat_dim = model.classifier.in_features
             model.classifier = nn.Identity()
             return model, feat_dim
         if name in ["efficientnet_b2", "efficientnet"]:
             weights = EfficientNet_B2_Weights.DEFAULT
-            model = efficientnet_b2(weights=weights)
+            model = efficientnet_b2(weights=None)
             feat_dim = model.classifier[1].in_features
             model.classifier = nn.Identity()
             return model, feat_dim
         if name in ["convnext_tiny", "convnext_t"]:
             weights = ConvNeXt_Tiny_Weights.DEFAULT
-            model = convnext_tiny(weights=weights)
+            model = convnext_tiny(weights=None)
             feat_dim = model.classifier[2].in_features
             model.classifier = nn.Sequential(model.classifier[0], model.classifier[1], nn.Identity())
             return model, feat_dim
@@ -139,6 +139,8 @@ def generate_gradcam(model, image_tensor, class_idx, device):
 
 
 def create_overlay(image: np.ndarray, heatmap: np.ndarray, alpha: float = 0.4) -> np.ndarray:
+    if heatmap.shape[:2] != image.shape[:2]:
+        heatmap = cv2.resize(heatmap, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_LINEAR)
     heatmap_colored = cv2.applyColorMap((heatmap * 255).astype(np.uint8), cv2.COLORMAP_JET)
     heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
     image_norm = image.astype(np.float32) / 255.0
@@ -160,6 +162,7 @@ def main():
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--device", default="cuda:0" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--progress-file", default="")
+    parser.add_argument("--targets", default="")
     parser.add_argument("--project", default="")
     parser.add_argument("--user", default="")
     args = parser.parse_args()
@@ -183,6 +186,30 @@ def main():
     image_paths = [p for p in input_dir.rglob("*") if p.suffix.lower() in image_exts]
 
     summary_rows = []
+    targets_map = {}
+    if args.targets:
+        try:
+            df_targets = pd.read_csv(args.targets)
+            for _, row in df_targets.iterrows():
+                name = str(row.get("Image_name", "")).strip()
+                if not name:
+                    continue
+                targets_map[name] = {
+                    "Linear Pattern_target": row.get("Linear Pattern_target", ""),
+                    "Peri-vascular Pattern_target": row.get("Peri-vascular Pattern_target", ""),
+                }
+        except Exception:
+            targets_map = {}
+    summary_columns = ["sample_idx", "image_path", "is_correct", "Image_name"]
+    for class_name in class_names:
+        summary_columns.extend(
+            [
+                f"{class_name}_target",
+                f"{class_name}_prediction",
+                f"{class_name}_probability",
+                f"{class_name}_correct",
+            ]
+        )
     total_images = len(image_paths)
     progress_path = Path(args.progress_file) if args.progress_file else None
     if progress_path:
@@ -230,6 +257,9 @@ def main():
                 overlay = create_overlay(original_img, heatmap, alpha=0.4)
                 Image.fromarray(overlay).save(sample_dir / f"overlay_{class_name}.png")
 
+            target_row = targets_map.get(sample_name, {})
+            linear_target = target_row.get("Linear Pattern_target", "")
+            peri_target = target_row.get("Peri-vascular Pattern_target", "")
             row = {
                 "sample_idx": batch_start + offset,
                 "image_path": str(img_path),
@@ -237,10 +267,22 @@ def main():
                 "Image_name": sample_name,
             }
             for class_idx, class_name in enumerate(class_names):
-                row[f"{class_name}_target"] = ""
+                if class_name == "Linear Pattern":
+                    row[f"{class_name}_target"] = linear_target
+                elif class_name == "Peri-vascular Pattern":
+                    row[f"{class_name}_target"] = peri_target
+                else:
+                    row[f"{class_name}_target"] = ""
                 row[f"{class_name}_prediction"] = int(preds[class_idx])
                 row[f"{class_name}_probability"] = float(probs[class_idx])
-                row[f"{class_name}_correct"] = ""
+                target_value = row[f"{class_name}_target"]
+                if target_value == "" or pd.isna(target_value):
+                    row[f"{class_name}_correct"] = ""
+                else:
+                    try:
+                        row[f"{class_name}_correct"] = int(int(target_value) == int(preds[class_idx]))
+                    except Exception:
+                        row[f"{class_name}_correct"] = ""
             summary_rows.append(row)
 
             if progress_path and total_images:
@@ -251,7 +293,9 @@ def main():
                 except Exception:
                     progress_path = None
 
-    pd.DataFrame(summary_rows).to_csv(output_dir / "heatmap_summary.csv", index=False)
+    pd.DataFrame(summary_rows, columns=summary_columns).to_csv(
+        output_dir / "heatmap_summary.csv", index=False
+    )
 
 
 if __name__ == "__main__":

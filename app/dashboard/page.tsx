@@ -4,8 +4,7 @@ import { cookies } from "next/headers";
 import { sessionCookieName, verifySession } from "@/lib/auth";
 import DashboardNavbar from "@/components/dashboard/navbar";
 import RequireAuth from "@/components/auth/require-auth";
-import DashboardViewer from "@/components/dashboard/dashboard-viewer";
-import StatusPanel from "@/components/dashboard/status-panel";
+import DashboardContent from "@/components/dashboard/dashboard-content";
 
 type HeatmapRow = Record<string, string>;
 
@@ -22,7 +21,7 @@ const parseCsv = (raw: string) => {
   });
 };
 
-const loadViewData = async (userId: string) => {
+const loadViewData = async (userId: string, preferredProject?: string) => {
   const resultsUserRoot = path.join(process.cwd(), "data", "results", userId);
   const viewRoot = resultsUserRoot;
   let projectName = "";
@@ -34,21 +33,29 @@ const loadViewData = async (userId: string) => {
       stats: {
         linearTarget?: string;
         linearProbability?: string;
+        linearPrediction?: string;
         linearCorrect?: string;
         periTarget?: string;
         periProbability?: string;
+        periPrediction?: string;
         periCorrect?: string;
       };
     }[];
+    clinical?: {
+      columns: string[];
+      rows: Record<string, string>[];
+    };
   }[] = [];
   let sampleName = "";
   let images: { src: string; label: string }[] = [];
   let stats: {
     linearTarget?: string;
     linearProbability?: string;
+    linearPrediction?: string;
     linearCorrect?: string;
     periTarget?: string;
     periProbability?: string;
+    periPrediction?: string;
     periCorrect?: string;
   } = {};
   let samples: {
@@ -57,9 +64,11 @@ const loadViewData = async (userId: string) => {
     stats: {
       linearTarget?: string;
       linearProbability?: string;
+      linearPrediction?: string;
       linearCorrect?: string;
       periTarget?: string;
       periProbability?: string;
+      periPrediction?: string;
       periCorrect?: string;
     };
   }[] = [];
@@ -68,7 +77,9 @@ const loadViewData = async (userId: string) => {
     await fs.access(resultsUserRoot);
     const entries = await fs.readdir(viewRoot, { withFileTypes: true });
     const projectDirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
-    const projectDir = projectDirs[0];
+    const projectDir = preferredProject && projectDirs.includes(preferredProject)
+      ? preferredProject
+      : projectDirs[0];
     if (!projectDir) {
       return { sampleName, images, stats, samples, projectName, projects };
     }
@@ -102,16 +113,40 @@ const loadViewData = async (userId: string) => {
             ? {
                 linearTarget: matched["Linear Pattern_target"],
                 linearProbability: matched["Linear Pattern_probability"],
+                linearPrediction: matched["Linear Pattern_prediction"],
                 linearCorrect: matched["Linear Pattern_correct"],
                 periTarget: matched["Peri-vascular Pattern_target"],
                 periProbability: matched["Peri-vascular Pattern_probability"],
+                periPrediction: matched["Peri-vascular Pattern_prediction"],
                 periCorrect: matched["Peri-vascular Pattern_correct"],
               }
             : {};
           return { name: sampleDir, images: sampleImages, stats: sampleStats };
         });
 
-        return { name: dirName, samples: projectSamples };
+        let clinical: { columns: string[]; rows: Record<string, string>[] } | undefined;
+        try {
+          const clinicalDir = path.join(projectRoot, "clinical_data");
+          const clinicalFiles = await fs.readdir(clinicalDir);
+          const csvName = clinicalFiles.find((name) => name.toLowerCase().endsWith(".csv"));
+          if (csvName) {
+            const raw = await fs.readFile(path.join(clinicalDir, csvName), "utf8");
+            const parsed = parseCsv(raw);
+            const columns = raw.split(/\r?\n/)[0]?.split(",").map((c) => c.trim()) || [];
+            const sampleSet = new Set(projectSamples.map((s) => s.name));
+            const enriched = parsed.map((row) => {
+              const imageName = row.Image_name || row.image_name || row["Image Name"] || row["image name"] || "";
+              const status = imageName && sampleSet.has(imageName) ? "Ready" : "Missing";
+              return { ...row, Status: status };
+            });
+            const finalColumns = columns.includes("Status") ? columns : [...columns, "Status"];
+            clinical = { columns: finalColumns, rows: enriched };
+          }
+        } catch {
+          clinical = undefined;
+        }
+
+        return { name: dirName, samples: projectSamples, clinical };
       })
     );
 
@@ -132,13 +167,23 @@ const loadViewData = async (userId: string) => {
   return { sampleName, images, stats, samples, projectName, projects };
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: { project?: string };
+}) {
   const cookieStore = await cookies();
   const token = cookieStore.get(sessionCookieName)?.value;
   const user = verifySession(token);
   const userId = user?.id ? user.id : "guest";
 
-  const { sampleName, samples, projectName, projects } = await loadViewData(userId);
+  const preferredProject =
+    typeof searchParams?.project === "string" ? searchParams.project : undefined;
+  const { sampleName, samples, projectName, projects } = await loadViewData(
+    userId,
+    preferredProject
+  );
+  const hasResults = samples.length > 0;
 
   return (
     <RequireAuth>
@@ -155,13 +200,13 @@ export default async function DashboardPage() {
             }}
           />
 
-          <DashboardViewer
+          <DashboardContent
             projectName={projectName}
             samples={samples}
             projects={projects}
             initialSample={sampleName}
+            hasResults={hasResults}
           />
-          <StatusPanel />
         </section>
       </main>
     </RequireAuth>

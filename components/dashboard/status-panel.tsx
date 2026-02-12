@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
-type JobStatus = "queued" | "running" | "done" | "failed";
+type JobStatus = "queued" | "running" | "done" | "failed" | "canceled";
 
 type Job = {
   id: string;
@@ -127,6 +127,8 @@ const mapStatus = (status?: JobStatus): StatusType => {
       return "success";
     case "failed":
       return "error";
+    case "canceled":
+      return "warning";
     case "queued":
       return "pending";
     default:
@@ -134,12 +136,21 @@ const mapStatus = (status?: JobStatus): StatusType => {
   }
 };
 
-export default function StatusPanel() {
+export default function StatusPanel({
+  onResultReady,
+  onOpenResult,
+}: {
+  onResultReady?: () => void;
+  onOpenResult?: (project: string) => void;
+} = {}) {
   const [jobs, setJobs] = React.useState<Job[]>([]);
   const [showRunningOnly, setShowRunningOnly] = React.useState(false);
-  const [errorModal, setErrorModal] = React.useState<{ title: string; error: string } | null>(
-    null
-  );
+  const [errorModal, setErrorModal] = React.useState<{
+    title: string;
+    error: string;
+    loading: boolean;
+    jobId: string;
+  } | null>(null);
 
   const fetchJobs = React.useCallback(async () => {
     const res = await fetch("/api/jobs", { cache: "no-store" });
@@ -157,15 +168,47 @@ export default function StatusPanel() {
     return () => clearInterval(id);
   }, [fetchJobs]);
 
+  React.useEffect(() => {
+    if (!errorModal?.jobId) return;
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/jobs/log?id=${encodeURIComponent(errorModal.jobId)}`);
+        const data = await res.json();
+        setErrorModal((prev) =>
+          prev
+            ? {
+                ...prev,
+                error: data?.log || data?.message || "로그를 불러오지 못했습니다.",
+                loading: false,
+              }
+            : prev
+        );
+      } catch {
+        setErrorModal((prev) =>
+          prev ? { ...prev, error: "로그를 불러오지 못했습니다.", loading: false } : prev
+        );
+      }
+    }, 4000);
+    return () => clearInterval(id);
+  }, [errorModal?.jobId]);
+
   const activeJobs = React.useMemo(
     () => jobs.filter((job) => job.status === "queued" || job.status === "running"),
     [jobs]
   );
 
   const completedJobs = React.useMemo(
-    () => jobs.filter((job) => job.status === "done" || job.status === "failed"),
+    () => jobs.filter((job) => job.status === "done" || job.status === "failed" || job.status === "canceled"),
     [jobs]
   );
+
+  React.useEffect(() => {
+    if (!onResultReady) return;
+    const hasDone = jobs.some((job) => job.status === "done");
+    if (hasDone) {
+      onResultReady();
+    }
+  }, [jobs, onResultReady]);
 
   const visibleJobs = React.useMemo(() => {
     if (!showRunningOnly) return jobs;
@@ -215,6 +258,7 @@ export default function StatusPanel() {
 
           {visibleJobs.map((job) => {
             const isFailed = job.status === "failed";
+            const canCancel = job.status === "queued" || job.status === "running";
             return (
               <div
                 key={job.id}
@@ -222,22 +266,102 @@ export default function StatusPanel() {
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="text-sm text-white">{job.project || "project"}</div>
-                  <StatusBadge status={mapStatus(job.status)}>{job.status}</StatusBadge>
+                  <div className="flex items-center gap-2">
+                    {canCancel && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await fetch("/api/jobs", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ id: job.id, action: "cancel" }),
+                          });
+                          fetchJobs();
+                        }}
+                        className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/70 transition hover:border-white/30 hover:bg-white/10"
+                      >
+                        취소
+                      </button>
+                    )}
+                    {canCancel && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await fetch("/api/jobs", {
+                            method: "DELETE",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ ids: [job.id] }),
+                          });
+                          fetchJobs();
+                        }}
+                        className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/70 transition hover:border-white/30 hover:bg-white/10"
+                      >
+                        삭제
+                      </button>
+                    )}
+                    <StatusBadge status={mapStatus(job.status)}>{job.status}</StatusBadge>
+                  </div>
                 </div>
-                <div className="mt-1 text-[11px] text-white/50">{job.id}</div>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-white/50">
+                  <div>{job.id}</div>
+                  {job.status === "done" && job.project && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenResult?.(job.project || "")}
+                      className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/70 transition hover:border-white/30 hover:bg-white/10"
+                    >
+                      결과 보기
+                    </button>
+                  )}
+                </div>
                 <div className="mt-3 flex items-center justify-between text-[11px] text-white/60">
                   <div>진행률</div>
                   <div className="text-white">{job.progress ?? "-"}</div>
                 </div>
+                <div className="mt-1 flex items-center justify-between text-[11px] text-white/60">
+                  <div>결과 상태</div>
+                  <div className="text-white">
+                    {job.status === "done"
+                      ? "완료"
+                      : job.status === "failed"
+                      ? "실패"
+                      : job.status === "running"
+                      ? "분석중"
+                      : job.status === "queued"
+                      ? "대기중"
+                      : job.status === "canceled"
+                      ? "취소됨"
+                      : "-"}
+                  </div>
+                </div>
                 {isFailed && (
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={async () => {
                       setErrorModal({
                         title: job.project || "project",
-                        error: job.error || "알 수 없는 오류",
-                      })
-                    }
+                        error: "",
+                        loading: true,
+                        jobId: job.id,
+                      });
+                      try {
+                        const res = await fetch(`/api/jobs/log?id=${encodeURIComponent(job.id)}`);
+                        const data = await res.json();
+                        setErrorModal({
+                          title: job.project || "project",
+                          error: data?.log || data?.message || "로그를 불러오지 못했습니다.",
+                          loading: false,
+                          jobId: job.id,
+                        });
+                      } catch {
+                        setErrorModal({
+                          title: job.project || "project",
+                          error: "로그를 불러오지 못했습니다.",
+                          loading: false,
+                          jobId: job.id,
+                        });
+                      }
+                    }}
                     className="mt-3 text-[11px] text-red-200 underline-offset-2 hover:underline"
                   >
                     실패 원인 보기
@@ -271,8 +395,50 @@ export default function StatusPanel() {
               </button>
             </div>
             <div className="mt-3 text-sm text-white/70">{errorModal.title}</div>
+            <div className="mt-4 flex items-center justify-between text-[11px] text-white/60">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!errorModal.jobId) return;
+                  setErrorModal((prev) => (prev ? { ...prev, loading: true } : prev));
+                  try {
+                    const res = await fetch(
+                      `/api/jobs/log?id=${encodeURIComponent(errorModal.jobId)}`
+                    );
+                    const data = await res.json();
+                    setErrorModal((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            error:
+                              data?.log ||
+                              data?.message ||
+                              "로그를 불러오지 못했습니다.",
+                            loading: false,
+                          }
+                        : prev
+                    );
+                  } catch {
+                    setErrorModal((prev) =>
+                      prev
+                        ? { ...prev, error: "로그를 불러오지 못했습니다.", loading: false }
+                        : prev
+                    );
+                  }
+                }}
+                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/70 transition hover:border-white/30 hover:bg-white/10"
+              >
+                새로고침
+              </button>
+              <a
+                href={`/api/jobs/log?id=${encodeURIComponent(errorModal.jobId)}&download=1`}
+                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/70 transition hover:border-white/30 hover:bg-white/10"
+              >
+                로그 다운로드
+              </a>
+            </div>
             <pre className="mt-4 max-h-64 overflow-auto rounded-xl border border-white/10 bg-white/5 p-3 text-[11px] text-red-200">
-              {errorModal.error}
+              {errorModal.loading ? "로그 불러오는 중..." : errorModal.error}
             </pre>
           </div>
         </div>

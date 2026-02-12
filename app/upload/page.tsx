@@ -1,16 +1,21 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import RequireAuth from "@/components/auth/require-auth";
 import DashboardNavbar from "@/components/dashboard/navbar";
+import { useRouter } from "next/navigation";
 
 export default function UploadPage() {
+  const router = useRouter();
   const [mode, setMode] = React.useState<"single" | "folder">("single");
   const [projectName, setProjectName] = React.useState("");
   const [backbone, setBackbone] = React.useState("resnext50_32x4d");
   const [modelNumber, setModelNumber] = React.useState("");
   const [models, setModels] = React.useState<Record<string, string[]>>({});
   const [status, setStatus] = React.useState<string | null>(null);
+  const [linearTarget, setLinearTarget] = React.useState("");
+  const [periTarget, setPeriTarget] = React.useState("");
+  const clinicalRef = React.useRef<HTMLInputElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -57,6 +62,13 @@ export default function UploadPage() {
     formData.append("modelNumber", modelNumber);
     if (mode === "single") {
       formData.append("projectName", projectName.trim());
+      if (linearTarget.trim()) formData.append("linearTarget", linearTarget.trim());
+      if (periTarget.trim()) formData.append("periTarget", periTarget.trim());
+    } else if (mode === "folder") {
+      const clinicalFile = clinicalRef.current?.files?.[0];
+      if (clinicalFile) {
+        formData.append("clinicalFile", clinicalFile);
+      }
     }
     Array.from(files).forEach((file) => {
       formData.append("files", file, file.webkitRelativePath || file.name);
@@ -68,9 +80,13 @@ export default function UploadPage() {
       setStatus(data.message || "업로드에 실패했습니다.");
       return;
     }
-    setStatus("업로드가 완료되었습니다.");
+    setStatus("업로드가 완료되었습니다. 상태 페이지로 이동합니다.");
     setProjectName("");
+    setLinearTarget("");
+    setPeriTarget("");
+    if (clinicalRef.current) clinicalRef.current.value = "";
     if (inputRef.current) inputRef.current.value = "";
+    setTimeout(() => router.push("/dashboard#status"), 400);
   };
 
   return (
@@ -141,6 +157,41 @@ export default function UploadPage() {
                     onChange={(e) => setProjectName(e.target.value)}
                     placeholder="예: project_alpha"
                     className="mt-2 w-full rounded-xl border border-white/10 bg-[#0f172a]/80 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {mode === "single" && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs text-white/60">Linear Ground Truth</label>
+                    <input
+                      value={linearTarget}
+                      onChange={(e) => setLinearTarget(e.target.value)}
+                      placeholder="0 또는 1"
+                      className="mt-2 w-full rounded-xl border border-white/10 bg-[#0f172a]/80 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/60">Peri-vascular Ground Truth</label>
+                    <input
+                      value={periTarget}
+                      onChange={(e) => setPeriTarget(e.target.value)}
+                      placeholder="0 또는 1"
+                      className="mt-2 w-full rounded-xl border border-white/10 bg-[#0f172a]/80 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {mode === "folder" && (
+                <div>
+                  <label className="text-xs text-white/60">Clinical 데이터 (옵션)</label>
+                  <input
+                    ref={clinicalRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    className="mt-2 block w-full cursor-pointer rounded-2xl border border-dashed border-white/20 bg-[#0f172a]/60 px-4 py-4 text-sm text-white/60 file:mr-4 file:rounded-full file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-xs file:text-white"
                   />
                 </div>
               )}

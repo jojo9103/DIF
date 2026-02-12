@@ -1,6 +1,8 @@
 import json
 import os
+import shutil
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,8 +53,17 @@ def run_model(job):
     output_root.mkdir(parents=True, exist_ok=True)
     progress_file = output_root / "progress.txt"
     log_file = output_root / "worker.log"
+
+    if job.get("mode") == "folder":
+        clinical_src = Path(job.get("inputDir", "")) / "clinical_data"
+        clinical_dest = output_root / "clinical_data"
+        if clinical_src.exists():
+            try:
+                shutil.copytree(clinical_src, clinical_dest, dirs_exist_ok=True)
+            except Exception:
+                pass
     cmd = [
-        "python",
+        sys.executable,
         runner,
         "--input",
         input_dir,
@@ -80,6 +91,9 @@ def run_model(job):
 
     if job.get("mode") == "folder":
         cmd.extend(["--batch-size", "4"])
+    targets_path = job.get("targetsPath")
+    if targets_path:
+        cmd.extend(["--targets", targets_path])
     with log_file.open("a", encoding="utf-8") as log:
         log.write(f"[{datetime.now(timezone.utc).isoformat()}] start: {' '.join(cmd)}\n")
         log.flush()
@@ -120,10 +134,21 @@ def run_model(job):
 
 
 def main():
+    last_log = 0.0
     while True:
-        jobs = [j for j in load_jobs() if j.get("status") == "queued"]
+        jobs = [
+            j
+            for j in load_jobs()
+            if j.get("status") == "queued"
+            and not (Path(j.get("outputDir", "")) / "cancel.flag").exists()
+        ]
+        now = time.time()
+        if now - last_log >= 5:
+            print(f"[worker] heartbeat: queued={len(jobs)}")
+            last_log = now
         if jobs:
             job = sorted(jobs, key=lambda j: j.get("createdAt", ""))[0]
+            print(f"[worker] start job={job.get('id')} project={job.get('project')}")
             job["status"] = "running"
             job["progress"] = 0
             job["lastHeartbeat"] = datetime.now(timezone.utc).isoformat()
@@ -134,9 +159,11 @@ def main():
                 run_model(job)
                 job["status"] = "done"
                 job["progress"] = 100
+                print(f"[worker] done job={job.get('id')}")
             except Exception as e:
                 job["status"] = "failed"
                 job["error"] = str(e)
+                print(f"[worker] failed job={job.get('id')} error={e}")
             save_job(job)
         time.sleep(2)
 

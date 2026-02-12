@@ -32,6 +32,9 @@ export async function POST(request: Request) {
   const backbone = (formData.get("backbone") as string) || "resnext50_32x4d";
   const modelNumber = (formData.get("modelNumber") as string) || "";
   const projectName = (formData.get("projectName") as string) || "project";
+  const linearTarget = (formData.get("linearTarget") as string) || "";
+  const periTarget = (formData.get("periTarget") as string) || "";
+  const clinicalFile = formData.get("clinicalFile") as File | null;
   const files = formData.getAll("files") as File[];
 
   if (!files.length) {
@@ -51,6 +54,22 @@ export async function POST(request: Request) {
     await ensureDir(path.dirname(targetPath));
     const arrayBuffer = await file.arrayBuffer();
     await fs.writeFile(targetPath, Buffer.from(arrayBuffer));
+  }
+
+  if (mode === "folder" && clinicalFile) {
+    const clinicalPath = path.join(baseDir, "clinical_data");
+    await ensureDir(clinicalPath);
+    const arrayBuffer = await clinicalFile.arrayBuffer();
+    const safeName = clinicalFile.name.replace(/[^\w.\-]+/g, "_");
+    await fs.writeFile(path.join(clinicalPath, safeName), Buffer.from(arrayBuffer));
+  }
+
+  if (mode === "single" && (linearTarget || periTarget)) {
+    const targetsPath = path.join(baseDir, "targets.csv");
+    const header = "Image_name,Linear Pattern_target,Peri-vascular Pattern_target\n";
+    const sampleName = path.parse(files[0].name).name;
+    const row = `${sampleName},${linearTarget || ""},${periTarget || ""}\n`;
+    await fs.writeFile(targetsPath, header + row, "utf8");
   }
 
   let weightsPath = "";
@@ -91,6 +110,7 @@ export async function POST(request: Request) {
     backbone,
     modelNumber,
     weightsPath,
+    targetsPath: mode === "single" ? path.join(baseDir, "targets.csv") : "",
     status: "queued",
     createdAt: new Date().toISOString(),
   };

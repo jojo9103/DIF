@@ -19,9 +19,11 @@ export type ViewerSample = {
   stats?: {
     linearTarget?: string;
     linearProbability?: string;
+    linearPrediction?: string;
     linearCorrect?: string;
     periTarget?: string;
     periProbability?: string;
+    periPrediction?: string;
     periCorrect?: string;
   };
 };

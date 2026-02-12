@@ -11,9 +11,11 @@ export type DashboardImage = {
 export type HeatmapStats = {
   linearTarget?: string;
   linearProbability?: string;
+  linearPrediction?: string;
   linearCorrect?: string;
   periTarget?: string;
   periProbability?: string;
+  periPrediction?: string;
   periCorrect?: string;
 };
 
@@ -260,6 +262,7 @@ export default function ImageViewer({
         const periProb = stats?.periProbability ? Number(stats.periProbability) : undefined;
         const linearPercent = Number.isFinite(linearProb) ? Math.round(linearProb * 100) : null;
         const periPercent = Number.isFinite(periProb) ? Math.round(periProb * 100) : null;
+        const hasTargets = Boolean(stats?.linearTarget || stats?.periTarget);
 
         return (
           <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
@@ -302,27 +305,50 @@ export default function ImageViewer({
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-xs text-white/60">
                   <div className="text-white/50">Linear Pattern</div>
-                  <div className="mt-2 text-sm text-white">
-                    Ground Truth: {stats?.linearTarget ?? "-"}
-                  </div>
-                  <div className="mt-1 text-sm text-white">
-                    Correct: {stats?.linearCorrect ?? "-"}
-                  </div>
+                  {stats?.linearTarget ? (
+                    <>
+                      <div className="mt-2 text-sm text-white">
+                        Ground Truth: {stats?.linearTarget}
+                      </div>
+                      <div className="mt-1 text-sm text-white">
+                        Prediction: {stats?.linearPrediction ?? "-"}
+                      </div>
+                      <div className="mt-1 text-sm text-white">
+                        Correct: {stats?.linearCorrect ?? "-"}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-2 text-sm text-white">
+                      Prediction: {stats?.linearPrediction ?? "-"}
+                    </div>
+                  )}
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-xs text-white/60">
                   <div className="text-white/50">Peri-vascular Pattern</div>
-                  <div className="mt-2 text-sm text-white">
-                    Ground Truth: {stats?.periTarget ?? "-"}
-                  </div>
-                  <div className="mt-1 text-sm text-white">
-                    Correct: {stats?.periCorrect ?? "-"}
-                  </div>
+                  {stats?.periTarget ? (
+                    <>
+                      <div className="mt-2 text-sm text-white">
+                        Ground Truth: {stats?.periTarget}
+                      </div>
+                      <div className="mt-1 text-sm text-white">
+                        Prediction: {stats?.periPrediction ?? "-"}
+                      </div>
+                      <div className="mt-1 text-sm text-white">
+                        Correct: {stats?.periCorrect ?? "-"}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-2 text-sm text-white">
+                      Prediction: {stats?.periPrediction ?? "-"}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         );
       })()}
+
     </section>
   );
 }
