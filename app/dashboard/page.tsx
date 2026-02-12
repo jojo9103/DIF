@@ -1,8 +1,11 @@
 import path from "path";
 import { promises as fs } from "fs";
+import { cookies } from "next/headers";
+import { sessionCookieName, verifySession } from "@/lib/auth";
 import DashboardNavbar from "@/components/dashboard/navbar";
 import RequireAuth from "@/components/auth/require-auth";
 import DashboardViewer from "@/components/dashboard/dashboard-viewer";
+import StatusPanel from "@/components/dashboard/status-panel";
 
 type HeatmapRow = Record<string, string>;
 
@@ -19,10 +22,9 @@ const parseCsv = (raw: string) => {
   });
 };
 
-const loadViewData = async () => {
-  const viewerRoot = path.join(process.cwd(), "public", "viewer");
-  const fallbackRoot = path.join(process.cwd(), "public", "view");
-  let viewRoot = viewerRoot;
+const loadViewData = async (userId: string) => {
+  const resultsUserRoot = path.join(process.cwd(), "data", "results", userId);
+  const viewRoot = resultsUserRoot;
   let projectName = "";
   let projects: {
     name: string;
@@ -63,12 +65,7 @@ const loadViewData = async () => {
   }[] = [];
 
   try {
-    try {
-      await fs.access(viewerRoot);
-    } catch {
-      viewRoot = fallbackRoot;
-    }
-
+    await fs.access(resultsUserRoot);
     const entries = await fs.readdir(viewRoot, { withFileTypes: true });
     const projectDirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
     const projectDir = projectDirs[0];
@@ -93,7 +90,7 @@ const loadViewData = async () => {
           .map((entry) => entry.name);
 
         const projectSamples = sampleDirs.map((sampleDir) => {
-          const basePath = `/${path.basename(viewRoot)}/${dirName}/${sampleDir}`;
+          const basePath = `/results/${userId}/${dirName}/${sampleDir}`;
           const sampleImages = [
             { src: `${basePath}/original.png`, label: "Original" },
             { src: `${basePath}/overlay_Linear Pattern.png`, label: "Linear Pattern" },
@@ -136,7 +133,12 @@ const loadViewData = async () => {
 };
 
 export default async function DashboardPage() {
-  const { sampleName, samples, projectName, projects } = await loadViewData();
+  const cookieStore = await cookies();
+  const token = cookieStore.get(sessionCookieName)?.value;
+  const user = verifySession(token);
+  const userId = user?.id ? user.id : "guest";
+
+  const { sampleName, samples, projectName, projects } = await loadViewData(userId);
 
   return (
     <RequireAuth>
@@ -159,6 +161,7 @@ export default async function DashboardPage() {
             projects={projects}
             initialSample={sampleName}
           />
+          <StatusPanel />
         </section>
       </main>
     </RequireAuth>

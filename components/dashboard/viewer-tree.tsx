@@ -2,7 +2,16 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Tree, TreeItem, TreeItemLabel, ItemInstance } from "@/components/ui/tree";
+import {
+  TreeProvider,
+  TreeView,
+  TreeNode,
+  TreeNodeTrigger,
+  TreeNodeContent,
+  TreeExpander,
+  TreeIcon,
+  TreeLabel,
+} from "@/components/ui/tree";
 
 export type ViewerSample = {
   name: string;
@@ -67,39 +76,6 @@ export default function ViewerTree({
   const toggleSample = (project: string, sampleName: string) => {
     toggle(`sample:${project}:${sampleName}`);
   };
-
-  const makeProjectItem = (name: string, isActive: boolean): ItemInstance => ({
-    getItemName: () => name,
-    getItemMeta: () => ({ level: 0 }),
-    isFolder: () => true,
-    isExpanded: () => expanded[`project:${name}`] ?? isActive,
-    isSelected: () => isActive,
-    isMatchingSearch: () => false,
-  });
-
-  const makeSampleItem = (
-    project: string,
-    sampleName: string,
-    isActive: boolean
-  ): ItemInstance => ({
-    getItemName: () => sampleName,
-    getItemMeta: () => ({ level: 1 }),
-    isFolder: () => true,
-    isExpanded: () => expanded[`sample:${project}:${sampleName}`] ?? isActive,
-    isSelected: () => isActive,
-    isMatchingSearch: () =>
-      query.trim() ? sampleName.toLowerCase().includes(query.toLowerCase()) : false,
-  });
-
-  const makeImageItem = (name: string, index: number, isActive: boolean): ItemInstance => ({
-    getItemName: () => name,
-    getItemMeta: () => ({ level: 2 }),
-    isFolder: () => false,
-    isExpanded: () => false,
-    isSelected: () => isActive,
-    isMatchingSearch: () =>
-      query.trim() ? name.toLowerCase().includes(query.toLowerCase()) : false,
-  });
 
   const handleSuggestionClick = (name: string) => {
     setQuery(name);
@@ -183,107 +159,114 @@ export default function ViewerTree({
       </div>
 
       <div className="flex-1 overflow-y-auto pr-1">
-        <Tree indent={18} className="gap-1 text-white/80">
-          {(projects.length ? projects : projectName ? [{ name: projectName, samples }] : [])
-            .filter((project) => {
-              if (!query.trim()) return true;
-              return project.samples.some((sample) =>
-                sample.name.toLowerCase().includes(query.trim().toLowerCase())
-              );
-            })
-            .map((project) => {
-              const isActiveProject = project.name === projectName;
-              const projectOpen = expanded[`project:${project.name}`] ?? isActiveProject;
-              const projectSamples = query.trim()
-                ? project.samples.filter((sample) =>
-                    sample.name.toLowerCase().includes(query.trim().toLowerCase())
-                  )
-                : project.samples;
-
-              return (
-                <div key={project.name} className="mb-1">
-                  <TreeItem
-                    item={makeProjectItem(project.name, isActiveProject)}
-                    onClick={() => {
-                      onSelectProject?.(project.name);
-                      toggleProject(project.name);
-                    }}
-                    className={cn(
-                      "flex w-full items-center rounded-xl border px-2 py-1.5 text-left text-sm transition",
-                      isActiveProject
-                        ? "border-white/60 bg-white/10 text-white"
-                        : "border-white/10 bg-white/5 text-white/70 hover:border-white/30"
-                    )}
+        <TreeProvider
+          defaultExpandedIds={[
+            projectName ? `project:${projectName}` : "",
+            projectName && activeSample ? `sample:${projectName}:${activeSample}` : "",
+          ].filter(Boolean)}
+          selectedIds={[
+            activeIndex >= 0 && activeSample
+              ? `image:${projectName}:${activeSample}:${activeIndex}`
+              : activeSample
+              ? `sample:${projectName}:${activeSample}`
+              : projectName
+              ? `project:${projectName}`
+              : "",
+          ].filter(Boolean)}
+          showLines
+          showIcons
+          className="text-white/80"
+        >
+          <TreeView>
+            {(projects.length ? projects : projectName ? [{ name: projectName, samples }] : [])
+              .filter((project) => {
+                if (!query.trim()) return true;
+                return project.samples.some((sample) =>
+                  sample.name.toLowerCase().includes(query.trim().toLowerCase())
+                );
+              })
+              .map((project, projectIndex, projectArray) => {
+                const isLastProject = projectIndex === projectArray.length - 1;
+                const projectSamples = query.trim()
+                  ? project.samples.filter((sample) =>
+                      sample.name.toLowerCase().includes(query.trim().toLowerCase())
+                    )
+                  : project.samples;
+                return (
+                  <TreeNode
+                    key={project.name}
+                    nodeId={`project:${project.name}`}
+                    level={0}
+                    isLast={isLastProject}
                   >
-                    <TreeItemLabel className="text-xs text-white/80">
-                      {project.name}
-                    </TreeItemLabel>
-                  </TreeItem>
-
-                  {projectOpen && (
-                    <div className="mt-1 space-y-1">
-                      {projectSamples.map((sample) => {
-                        const isActive = sample.name === activeSample;
-                        const sampleOpen =
-                          expanded[`sample:${project.name}:${sample.name}`] ?? isActive;
-                        const item = makeSampleItem(project.name, sample.name, isActive);
+                    <TreeNodeTrigger
+                      className="border border-white/10 bg-white/5 text-white/70 hover:text-white"
+                      onClick={() => {
+                        onSelectProject?.(project.name);
+                        toggleProject(project.name);
+                      }}
+                    >
+                      <TreeExpander hasChildren />
+                      <TreeIcon hasChildren />
+                      <TreeLabel>{project.name}</TreeLabel>
+                    </TreeNodeTrigger>
+                    <TreeNodeContent hasChildren>
+                      {projectSamples.map((sample, sampleIndex) => {
+                        const isLastSample = sampleIndex === projectSamples.length - 1;
                         return (
-                          <div key={`${project.name}-${sample.name}`} className="mb-1">
-                            <TreeItem
-                              item={item}
+                          <TreeNode
+                            key={`${project.name}-${sample.name}`}
+                            nodeId={`sample:${project.name}:${sample.name}`}
+                            level={1}
+                            isLast={isLastSample}
+                            parentPath={[isLastProject]}
+                          >
+                            <TreeNodeTrigger
+                              className="border border-white/10 bg-white/5 text-white/70 hover:text-white"
                               onClick={() => {
                                 onSelectSample(sample.name);
                                 toggleSample(project.name, sample.name);
                               }}
-                              className={cn(
-                                "flex w-full items-center justify-between rounded-xl border px-2 py-1.5 text-left text-sm transition",
-                                isActive
-                                  ? "border-white/60 bg-white/10 text-white"
-                                  : "border-white/10 bg-white/5 text-white/70 hover:border-white/30"
-                              )}
                             >
-                              <TreeItemLabel className="text-xs text-white/80">
-                                {sample.name}
-                              </TreeItemLabel>
-                            </TreeItem>
-
-                            {sampleOpen && (
-                              <div className="mt-1 space-y-1">
-                                {sample.images.map((img, index) => {
-                                  const active = isActive && index === activeIndex;
-                                  const childItem = makeImageItem(img.label, index, active);
-                                  return (
-                                    <TreeItem
-                                      key={img.src}
-                                      item={childItem}
+                              <TreeExpander hasChildren />
+                              <TreeIcon hasChildren />
+                              <TreeLabel>{sample.name}</TreeLabel>
+                            </TreeNodeTrigger>
+                            <TreeNodeContent hasChildren>
+                              {sample.images.map((img, imgIndex) => {
+                                const isLastImage = imgIndex === sample.images.length - 1;
+                                return (
+                                  <TreeNode
+                                    key={`${project.name}-${sample.name}-${img.label}`}
+                                    nodeId={`image:${project.name}:${sample.name}:${imgIndex}`}
+                                    level={2}
+                                    isLast={isLastImage}
+                                    parentPath={[isLastProject, isLastSample]}
+                                  >
+                                    <TreeNodeTrigger
+                                      className="border border-white/10 bg-white/5 text-white/60 hover:text-white"
                                       onClick={() => {
                                         onSelectSample(sample.name);
-                                        onSelectImage(index);
+                                        onSelectImage(imgIndex);
                                       }}
-                                      className={cn(
-                                        "flex w-full items-center rounded-lg border px-2 py-1 text-left text-xs transition",
-                                        active
-                                          ? "border-sky-300/70 bg-sky-400/10 text-white"
-                                          : "border-white/5 bg-white/5 text-white/60 hover:border-white/20"
-                                      )}
                                     >
-                                      <TreeItemLabel className="text-[11px] text-white/70">
-                                        {img.label}
-                                      </TreeItemLabel>
-                                    </TreeItem>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
+                                      <TreeExpander hasChildren={false} />
+                                      <TreeIcon hasChildren={false} />
+                                      <TreeLabel>{img.label}</TreeLabel>
+                                    </TreeNodeTrigger>
+                                  </TreeNode>
+                                );
+                              })}
+                            </TreeNodeContent>
+                          </TreeNode>
                         );
                       })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-        </Tree>
+                    </TreeNodeContent>
+                  </TreeNode>
+                );
+              })}
+          </TreeView>
+        </TreeProvider>
         {query.trim() && !filtered.length && (
           <div className="text-xs text-white/50">검색 결과가 없습니다.</div>
         )}

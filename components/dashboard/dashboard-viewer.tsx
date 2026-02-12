@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import React from "react";
+import Link from "next/link";
 import ImageViewer from "@/components/dashboard/image-viewer";
 import ViewerTree, { ViewerSample } from "@/components/dashboard/viewer-tree";
 
@@ -49,8 +50,19 @@ export default function DashboardViewer({
 
   if (!current) {
     return (
-      <div className="mx-auto w-full max-w-6xl rounded-3xl border border-white/10 bg-white/5 p-8 text-sm text-white/60">
-        표시할 샘플이 없습니다. `public/viewer/{프로젝트}/{샘플}` 폴더를 추가해 주세요.
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-8 text-sm text-white/60">
+        <div>표시할 샘플이 없습니다.</div>
+        <div className="text-white/70">
+          업로드 후 결과를 확인하려면 아래 버튼을 눌러 분석을 시작하세요.
+        </div>
+        <div>
+          <Link
+            href="/upload"
+            className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/10 px-5 py-2 text-xs font-semibold text-white transition hover:border-white/35 hover:bg-white/15"
+          >
+            Start analysis
+          </Link>
+        </div>
       </div>
     );
   }

@@ -1,30 +1,151 @@
-"use client";
-
+import path from "path";
+import { promises as fs } from "fs";
+import DashboardNavbar from "@/components/dashboard/navbar";
 import RequireAuth from "@/components/auth/require-auth";
-import Navbar from "@/components/main/navbar";
+import DashboardViewer from "@/components/dashboard/dashboard-viewer";
 
-export default function DemoPage() {
+type HeatmapRow = Record<string, string>;
+
+const parseCsv = (raw: string) => {
+  const [headerLine, ...rows] = raw.split(/\r?\n/).filter(Boolean);
+  if (!headerLine) return [];
+  const headers = headerLine.split(",").map((h) => h.trim());
+  return rows.map((line) => {
+    const values = line.split(",").map((v) => v.trim());
+    return headers.reduce<HeatmapRow>((acc, key, index) => {
+      acc[key] = values[index] ?? "";
+      return acc;
+    }, {});
+  });
+};
+
+const DEMO_PROJECTS = ["demo", "Test"];
+
+const loadDemoData = async () => {
+  const resultsRoot = path.join(process.cwd(), "data", "results");
+  let projectName = "";
+  let projects: {
+    name: string;
+    samples: {
+      name: string;
+      images: { src: string; label: string }[];
+      stats: {
+        linearTarget?: string;
+        linearProbability?: string;
+        linearCorrect?: string;
+        periTarget?: string;
+        periProbability?: string;
+        periCorrect?: string;
+      };
+    }[];
+  }[] = [];
+  let sampleName = "";
+  let samples: {
+    name: string;
+    images: { src: string; label: string }[];
+    stats: {
+      linearTarget?: string;
+      linearProbability?: string;
+      linearCorrect?: string;
+      periTarget?: string;
+      periProbability?: string;
+      periCorrect?: string;
+    };
+  }[] = [];
+
+  try {
+    const entries = await fs.readdir(resultsRoot, { withFileTypes: true });
+    const projectDirs = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter((name) => DEMO_PROJECTS.includes(name));
+
+    const projectDir = projectDirs[0];
+    if (!projectDir) {
+      return { sampleName, samples, projectName, projects };
+    }
+
+    projectName = projectDir;
+    projects = await Promise.all(
+      projectDirs.map(async (dirName) => {
+        const projectRoot = path.join(resultsRoot, dirName);
+        let rows: HeatmapRow[] = [];
+        try {
+          const raw = await fs.readFile(path.join(projectRoot, "heatmap_summary.csv"), "utf8");
+          rows = parseCsv(raw);
+        } catch {
+          rows = [];
+        }
+        const projectEntries = await fs.readdir(projectRoot, { withFileTypes: true });
+        const sampleDirs = projectEntries
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => entry.name);
+
+        const projectSamples = sampleDirs.map((sampleDir) => {
+          const basePath = `/results/${dirName}/${sampleDir}`;
+          const sampleImages = [
+            { src: `${basePath}/original.png`, label: "Original" },
+            { src: `${basePath}/overlay_Linear Pattern.png`, label: "Linear Pattern" },
+            { src: `${basePath}/overlay_Peri-vascular Pattern.png`, label: "Peri-vascular Pattern" },
+          ].map((img) => ({ ...img, src: encodeURI(img.src) }));
+
+          const matched = rows.find((row) => row.Image_name === sampleDir);
+          const sampleStats = matched
+            ? {
+                linearTarget: matched["Linear Pattern_target"],
+                linearProbability: matched["Linear Pattern_probability"],
+                linearCorrect: matched["Linear Pattern_correct"],
+                periTarget: matched["Peri-vascular Pattern_target"],
+                periProbability: matched["Peri-vascular Pattern_probability"],
+                periCorrect: matched["Peri-vascular Pattern_correct"],
+              }
+            : {};
+          return { name: sampleDir, images: sampleImages, stats: sampleStats };
+        });
+
+        return { name: dirName, samples: projectSamples };
+      })
+    );
+
+    const activeProject = projects.find((p) => p.name === projectName) ?? projects[0];
+    if (activeProject) {
+      samples = activeProject.samples;
+      const sampleDir = samples[0]?.name;
+      if (sampleDir) {
+        sampleName = sampleDir;
+      }
+    }
+  } catch {
+    // no-op: allow empty state
+  }
+
+  return { sampleName, samples, projectName, projects };
+};
+
+export default async function DemoPage() {
+  const { sampleName, samples, projectName, projects } = await loadDemoData();
+
   return (
     <RequireAuth>
-      <main className="min-h-screen bg-[#0b0f1a] text-white">
-        <Navbar />
-        <section className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center px-6 py-20 lg:px-10">
-          <h1 className="text-3xl font-semibold">Demo 결과 보기</h1>
-          <p className="mt-3 max-w-2xl text-sm text-white/70">
-            승인된 사용자만 데모 결과를 확인할 수 있습니다. 샘플 DIF 이미지의 패턴
-            분류와 Grad-CAM 히트맵을 제공합니다.
-          </p>
-          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-8">
-            <div className="text-xs text-white/60">Demo Preview</div>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-[#0f172a]/80 p-5 text-sm text-white/70">
-                패턴 결과 요약 영역
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-[#0f172a]/80 p-5 text-sm text-white/70">
-                Grad-CAM 히트맵 미리보기
-              </div>
-            </div>
-          </div>
+      <main className="min-h-screen bg-[#181818] text-white">
+        <DashboardNavbar />
+        <section className="relative min-h-screen px-6 pb-16 pt-28 lg:px-10">
+          <div
+            className="absolute inset-0 -z-10"
+            style={{
+              backgroundColor: "#181818",
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)",
+              backgroundSize: "64px 64px",
+            }}
+          />
+
+          <DashboardViewer
+            projectName={projectName}
+            samples={samples}
+            projects={projects}
+            initialSample={sampleName}
+          />
         </section>
       </main>
     </RequireAuth>

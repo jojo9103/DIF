@@ -46,18 +46,49 @@ export default function DashboardNavbar({ className }: DashboardNavbarProps) {
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-[0_12px_30px_rgba(0,0,0,0.35)] backdrop-blur"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur"
           >
             <Image src="/dif.png" alt="DIF logo" width={32} height={32} />
           </button>
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(0,0,0,0.35)] backdrop-blur"
+            className="text-sm font-semibold text-white"
           >
             DIF Pattern Detector
           </button>
         </div>
+
+        <nav className="hidden items-center gap-8 text-sm text-white/70 lg:flex">
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard")}
+            className="transition hover:text-white"
+          >
+            Result
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/demo")}
+            className="transition hover:text-white"
+          >
+            Demo
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/upload")}
+            className="transition hover:text-white"
+          >
+            Start analysis
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard#status")}
+            className="transition hover:text-white"
+          >
+            Status
+          </button>
+        </nav>
 
         <div className="relative" ref={popoverRef}>
           <button

@@ -55,8 +55,8 @@ export default function ImageViewer({
     }
   };
 
-  const prev = () => setSafeIndex(index - 1);
-  const next = () => setSafeIndex(index + 1);
+  const prev = () => setSafeIndex(resolvedIndex - 1);
+  const next = () => setSafeIndex(resolvedIndex + 1);
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
