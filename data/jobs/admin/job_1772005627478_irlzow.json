@@ -1,0 +1,18 @@
+{
+  "id": "job_1772005627478_irlzow",
+  "userId": "admin",
+  "project": "e",
+  "mode": "single",
+  "inputDir": "E:\\김제민교수님\\model_site\\data\\upload\\admin\\e",
+  "outputDir": "E:\\김제민교수님\\model_site\\data\\results\\admin\\e",
+  "backbone": "resnext50_32x4d",
+  "modelNumber": "0",
+  "weightsPath": "E:\\김제민교수님\\model_site\\data\\models\\resnext50_32x4d_0_best_model_512.pt",
+  "targetsPath": "E:\\김제민교수님\\model_site\\data\\upload\\admin\\e\\targets.csv",
+  "status": "done",
+  "createdAt": "2026-02-25T07:47:07.479Z",
+  "progress": 100,
+  "lastHeartbeat": "2026-02-25T07:47:17.704726+00:00",
+  "lastProgressAt": "2026-02-25T07:47:18.711583+00:00",
+  "logPath": "E:\\김제민교수님\\model_site\\data\\results\\admin\\e\\worker.log"
+}
